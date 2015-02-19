@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" >
+  <head>
+    <title>Ball crusher</title>
+
+    <link rel="stylesheet" href="master.css">
+    <link rel="stylesheet" href="prism.css">
+    <style>
+      pre { margin-left: 15px !important }
+    </style>
+
+
+    <script src="fabric.js"></script>
+	<script src="https://hammerjs.github.io/dist/hammer.js"></script>
+  </head>
+  <body onload="init()">
+
+
+
+    <div id="bd-wrapper" ng-controller="CanvasControls">
+      <h2>Ball crusher</h2>
+      <canvas id="c" width="440" height="550" style="border:1px dotted #ccc"></canvas>
+    </div>
+	  <span id="log"></span>
+<script id="main">
+    function inline(scrId, destId, direction)
+	{
+		var row = parseInt((scrId/(this.__canvas.coloumn+1))) + 1;
+		var rowMax = row*this.__canvas.coloumn;
+		var rowMin = rowMax - this.__canvas.coloumn;
+		if (("panleft" === direction && destId > rowMin) || ("panright" === direction && scrId <= rowMax))
+		 return true;
+		
+	}
+	
+    function swipe(ev, activeObj, canvas)
+	{
+	    var direction = ev.type;
+		var a = activeObj;
+		var aId = activeObj.id; // Array position is current.postion-1
+		var b = 'undefined';
+		var bId = 0;
+		var OFFSET = 110;
+		var NEXT = 1;
+
+		if ("panleft" == direction) {
+			OFFSET = 110;
+			NEXT = 1;
+		} else if ("panright" == direction) {
+			OFFSET = -110;
+			NEXT = -1;
+		}
+
+		bId = aId - NEXT;
+        b = fabric.Canvas.activeInstance._objects[bId-1];
+	    if (a.isAnimating == false && b.isAnimating == false && a.lockMovementX == false && ("panleft" === direction || "panright" === direction || "swipeleft" === direction || "swiperight" === direction)) {
+
+
+			if(!inline(aId, bId, direction))
+			   return;
+			   
+			a.isAnimating = true;
+            a.lockMovementY = true;
+			if (a.top != a.origionalY) {
+				a.animate('top', a.origionalY, {
+					duration: 200,
+					onChange: canvas.renderAll.bind(canvas),
+					onComplete: function() {
+					a.isAnimating = false;
+					a.lockMovementY = false;
+				},
+					easing: fabric.util.ease['easeInOutQuart']
+				});
+			}
+			
+			a.animate('left', a.origionalX-OFFSET, {
+			duration: 200,
+			onChange: canvas.renderAll.bind(canvas),
+			onComplete: function() {
+			    a.isAnimating = false;
+				b.lockMovementY = false;
+			},
+			easing: fabric.util.ease['easeInOutQuart']
+			});
+			
+			b.isAnimating = true;
+			b.lockMovementY = true;
+			if (b.top != b.origionalY) {
+					b.animate('left', b.origionalY, {
+					duration: 200,
+					onChange: canvas.renderAll.bind(canvas),
+					onComplete: function() {
+						b.isAnimating = false;
+						b.lockMovementY = false;
+					},
+					easing: fabric.util.ease['easeInOutQuart']
+				});
+			}
+			
+			b.animate('left', b.origionalX+OFFSET, {
+			duration: 200,
+			onChange: canvas.renderAll.bind(canvas),
+			onComplete: function() {
+                b.isAnimating = false;
+				b.lockMovementY = false;
+				//swap
+			
+				var temp = fabric.Canvas.activeInstance._objects[aId-1];	
+				fabric.Canvas.activeInstance._objects[aId-1] = fabric.Canvas.activeInstance._objects[bId-1];
+				fabric.Canvas.activeInstance._objects[bId-1] = temp;
+				
+				var tempId = fabric.Canvas.activeInstance._objects[aId-1].id;
+                fabric.Canvas.activeInstance._objects[aId-1].id = fabric.Canvas.activeInstance._objects[bId-1].id;
+				fabric.Canvas.activeInstance._objects[bId-1].id = tempId;	
+				
+				var tempX = a.origionalX;
+				a.origionalX = b.origionalX;
+				b.origionalX = tempX;
+				
+				var tempY = a.origionalY;
+				a.origionalY = b.origionalY;
+				b.origionalY = tempY;
+
+			},
+			easing: fabric.util.ease['easeInOutQuart']
+			});
+			
+			
+		}
+		
+		if (target.lockMovementY == false && ("panup" === direction || "pandown" === direction || "swipeup" === direction || "swipedown" === direction))
+			  target.lockMovementX = true;
+					  
+		myElement = document.getElementById("log");
+		myElement.textContent = myElement.textContent + direction +" ";
+	}
+	
+	function init() {
+	  var canvas = this.__canvas = new fabric.Canvas('c');
+
+	  //fabric.Object.prototype.transparentCorners = false;
+
+	   //create a simple instance
+       //by default, it only adds horizontal recognizers
+       var mc = new Hammer(this.__canvas.upperCanvasEl); 
+
+	  // let the pan gesture support all directions.
+	  // this will block the vertical scrolling on a touch-device while on the element
+	  //canvas.findTarget.bind(fabric.Canvas.activeInstance);
+	  mc.get('swipe').set({ direction: Hammer.DIRECTION_ALL,
+	                        threshold: 2
+	  });
+
+	  // listen to events...
+	  mc.on("swipeleft swiperight swipeup swipedown tap press", function(ev) {
+	    //swipe(ev);
+	  });
+     
+	 
+	 mc.get('pan').set({ direction: Hammer.DIRECTION_ALL,
+	                        threshold: 2
+	 });
+
+	  // listen to events...
+	  mc.on("panmove panleft panright panup pandown", function(ev) {
+	    var activeObj = fabric.Canvas.activeInstance.findTarget.apply(fabric.Canvas.activeInstance, [ev.e]);
+		//document.getElementById('log').innerHTML = document.getElementById('log').innerHTML + " " + activeObj.id;
+        swipe(ev, activeObj, canvas);
+
+
+	  //console.log(t);
+        //swipe(ev);
+	  });
+	  
+
+	  
+
+	  canvas.on('mouse:over', function(e) {
+		e.target.setStrokeWidth(5);
+		e.target.setStroke('black');
+		//var activeObj = fabric.Canvas.activeInstance.findTarget.apply(fabric.Canvas.activeInstance, [e]);
+		document.getElementById('log').innerHTML = document.getElementById('log').innerHTML + " " + e.target.id;
+		canvas.renderAll();
+	  });
+	/* 
+	  canvas.on('mouse:out', function(e) {
+		e.target.setStrokeWidth(1);
+		e.target.setStroke('#666');
+		canvas.renderAll();
+	  });
+	*/  
+	  
+	  this.__canvas.row = 5;
+	  this.__canvas.coloumn = 4;
+	  populateScreen();
+	}
+	
+	function populateScreen()
+	{
+		// add random objects
+	    for (var r = 0; r < this.__canvas.row; r++) {
+		var dim = 50;
+		var klass = 'Circle';
+		var options = [];
+
+		for (var c = 0; c < this.__canvas.coloumn; c++) {
+		    var cIndex = fabric.util.getRandomInt(0,4) % 4;
+		    var color = ['red', 'green', 'blue', 'yellow', 'black'][cIndex];
+			options = {
+			  top: r*110,
+			  left: c*110,
+			  fill: color,
+			  hasControls : false,
+			  hasBorders : false,
+			  lockScalingX : true,
+			  lockScalingY : true,
+			  strokeWidth : 1,
+			  stroke: '#666',
+			  id: (r*this.__canvas.coloumn+c+1),
+			  isAnimating: false,
+			  origionalX: c*110,
+			  origionalY: r*110,
+			};
+
+			if (klass === 'Circle') {
+			  options.radius = dim;
+			}
+			else {
+			  options.width = dim;
+			  options.height = dim;
+			}
+			this.__canvas.add(new fabric[klass](options));
+		}
+	  }
+	}
+</script>
+    <script>
+	/*
+(function() {
+  fabric.util.addListener(fabric.window, 'load', function() {
+    var canvas = this.__canvas || this.canvas,
+        canvases = this.__canvases || this.canvases;
+
+    canvas && canvas.calcOffset && canvas.calcOffset();
+
+    if (canvases && canvases.length) {
+      for (var i = 0, len = canvases.length; i < len; i++) {
+        canvases[i].calcOffset();
+      }
+    }
+  });
+})();
+*/
+</script>
+
+
+</body>
+</html>
